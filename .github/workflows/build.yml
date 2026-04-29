@@ -1,5 +1,5 @@
 name: Build and Publish
- 
+
 on:
   push:
     branches: [ main ]
@@ -7,75 +7,122 @@ on:
     branches: [ main ]
   release:
     types: [ created ]
- 
+
 jobs:
   build:
     runs-on: ubuntu-latest
- 
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
- 
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
- 
+
       - name: Restore dependencies
         run: dotnet restore
- 
+
       - name: Build
         run: dotnet build --configuration Release --no-restore
- 
-      - name: Publish linux-arm64
-        run: dotnet publish -c Release -r linux-arm64 --self-contained false -o ./publish/linux-arm64
- 
-      - name: Publish linux-arm
-        run: dotnet publish -c Release -r linux-arm --self-contained false -o ./publish/linux-arm
- 
-      - name: Upload linux-arm64 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: FreeGamesMonitor-linux-arm64
-          path: ./publish/linux-arm64
- 
-      - name: Upload linux-arm artifact
+
+      - name: Publish all platforms
+        run: |
+          dotnet publish -c Release -r linux-arm --self-contained false -o ./publish/linux-arm
+          dotnet publish -c Release -r linux-arm64 --self-contained false -o ./publish/linux-arm64
+          dotnet publish -c Release -r linux-x64 --self-contained false -o ./publish/linux-x64
+          dotnet publish -c Release -r osx-arm64 --self-contained false -o ./publish/osx-arm64
+          dotnet publish -c Release -r osx-x64 --self-contained false -o ./publish/osx-x64
+          dotnet publish -c Release -r win-arm64 --self-contained false -o ./publish/win-arm64
+          dotnet publish -c Release -r win-x64 --self-contained false -o ./publish/win-x64
+
+      - name: Upload linux-arm
         uses: actions/upload-artifact@v4
         with:
           name: FreeGamesMonitor-linux-arm
           path: ./publish/linux-arm
- 
+
+      - name: Upload linux-arm64
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreeGamesMonitor-linux-arm64
+          path: ./publish/linux-arm64
+
+      - name: Upload linux-x64
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreeGamesMonitor-linux-x64
+          path: ./publish/linux-x64
+
+      - name: Upload osx-arm64
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreeGamesMonitor-osx-arm64
+          path: ./publish/osx-arm64
+
+      - name: Upload osx-x64
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreeGamesMonitor-osx-x64
+          path: ./publish/osx-x64
+
+      - name: Upload win-arm64
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreeGamesMonitor-win-arm64
+          path: ./publish/win-arm64
+
+      - name: Upload win-x64
+        uses: actions/upload-artifact@v4
+        with:
+          name: FreeGamesMonitor-win-x64
+          path: ./publish/win-x64
+
   release:
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
     permissions:
       contents: write
- 
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
- 
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
- 
-      - name: Publish linux-arm64
-        run: dotnet publish -c Release -r linux-arm64 --self-contained false -o ./publish/linux-arm64
- 
-      - name: Zip linux-arm64
-        run: zip -r FreeGamesMonitor-linux-arm64.zip ./publish/linux-arm64
- 
-      - name: Publish linux-arm
-        run: dotnet publish -c Release -r linux-arm --self-contained false -o ./publish/linux-arm
- 
-      - name: Zip linux-arm
-        run: zip -r FreeGamesMonitor-linux-arm.zip ./publish/linux-arm
- 
+
+      - name: Publish all platforms
+        run: |
+          dotnet publish -c Release -r linux-arm --self-contained false -o ./publish/linux-arm
+          dotnet publish -c Release -r linux-arm64 --self-contained false -o ./publish/linux-arm64
+          dotnet publish -c Release -r linux-x64 --self-contained false -o ./publish/linux-x64
+          dotnet publish -c Release -r osx-arm64 --self-contained false -o ./publish/osx-arm64
+          dotnet publish -c Release -r osx-x64 --self-contained false -o ./publish/osx-x64
+          dotnet publish -c Release -r win-arm64 --self-contained false -o ./publish/win-arm64
+          dotnet publish -c Release -r win-x64 --self-contained false -o ./publish/win-x64
+
+      - name: Zip all platforms
+        run: |
+          zip -r FreeGamesMonitor-linux-arm.zip ./publish/linux-arm
+          zip -r FreeGamesMonitor-linux-arm64.zip ./publish/linux-arm64
+          zip -r FreeGamesMonitor-linux-x64.zip ./publish/linux-x64
+          zip -r FreeGamesMonitor-osx-arm64.zip ./publish/osx-arm64
+          zip -r FreeGamesMonitor-osx-x64.zip ./publish/osx-x64
+          zip -r FreeGamesMonitor-win-arm64.zip ./publish/win-arm64
+          zip -r FreeGamesMonitor-win-x64.zip ./publish/win-x64
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            FreeGamesMonitor-linux-arm64.zip
             FreeGamesMonitor-linux-arm.zip
+            FreeGamesMonitor-linux-arm64.zip
+            FreeGamesMonitor-linux-x64.zip
+            FreeGamesMonitor-osx-arm64.zip
+            FreeGamesMonitor-osx-x64.zip
+            FreeGamesMonitor-win-arm64.zip
+            FreeGamesMonitor-win-x64.zip

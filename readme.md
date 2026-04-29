@@ -1,111 +1,246 @@
-# ASF Raspberry Pi Setup Notes
+# ArchiSteamFarm-Games - FreeGamesMonitor
 
-## Overview
-FreeGamesMonitor is a .NET service that runs alongside ArchiSteamFarm (ASF) to detect and automatically claim free Steam games via ASF IPC.
+Automatically detects and claims free Steam games via ArchiSteamFarm (ASF) IPC.
 
-You can keep ASF running for AFK hours/card farming while the monitor handles free game claiming in the background.
+Runs alongside ASF whenever a free game appears on Steam, it gets added to your account automatically.
 
-## Requirements
-- ASF installed and configured
-- .NET runtime available (example: `$HOME/.dotnet/dotnet`)
-- Linux system with `systemd`
-
-## Architecture
-- ASF process handles Steam bot sessions
-- FreeGamesMonitor process checks free app offers and submits claim actions
-- Both communicate through ASF IPC
-
-## Runtime Model
-- ASF runs as a background service
-- FreeGamesMonitor runs as an independent `systemd` service
-- Communication occurs via ASF IPC (`http://localhost:1242`)
+---
 
 ## Installation
-### Source paths
-- ASF binary: `~/ASF/Core/ArchiSteamFarm`
-- Bot config: `~/ASF/Core/config/myaccount.json`
-- Global config: `~/ASF/Core/config/ASF.json`
-- Free games monitor project: `~/ASF/FreeGamesMonitor`
 
-### Runtime paths (post-publish)
-- Publish output: `~/ASF/FreeGamesMonitor/bin/Release/net10.0/publish/`
-- .NET runtime: `$HOME/.dotnet/dotnet`
+### Step 1 - Install .NET 10 Runtime
 
-### Build and run (manual test)
+#### Linux (Ubuntu, Debian, Raspberry Pi)
 ```bash
-cd ~/ASF/FreeGamesMonitor
-dotnet publish -c Release
-$HOME/.dotnet/dotnet bin/Release/net10.0/publish/FreeGamesMonitor.dll
+sudo apt update && sudo apt install -y dotnet-runtime-10.0
 ```
 
-### Add another bot
-1. Go to [ASF WebConfigGenerator](https://justarchinet.github.io/ASF-WebConfigGenerator)
-2. Generate bot config
-3. Save to `~/ASF/Core/config/botname.json`
-4. ASF auto-loads configs
+Verify:
+```bash
+dotnet --version
+```
 
-## Service Management
-### ASF service
-- Start ASF: `sudo systemctl start asf`
-- Stop ASF: `sudo systemctl stop asf`
-- ASF logs: `sudo journalctl -u asf -f`
+#### Windows
+Download and install from: https://dotnet.microsoft.com/en-us/download/dotnet/10.0
+Under **Run apps - Runtime**, click **Download x64** and run the installer.
 
-### FreeGamesMonitor service
-1. Create service file:
-   `sudo nano /etc/systemd/system/freegames.service`
+#### macOS
+```bash
+brew install dotnet-runtime
+```
 
-2. Paste:
+---
+
+### Step 2 - Enable IPC in ASF
+
+Create or edit `ASF/Core/config/ASF.json`:
+```json
+{
+  "IPC": true,
+  "IPCPassword": "yourpassword"
+}
+```
+> ASF auto-detects this change, no restart needed.
+
+---
+
+### Step 3 - Download FreeGamesMonitor
+
+Go to the [Releases page](../../releases/latest) and download the zip for your system:
+
+| Platform | File |
+|---|---|
+| Linux x64 (Ubuntu, Debian) | `FreeGamesMonitor-linux-x64.zip` |
+| Linux arm64 (Raspberry Pi 4/5) | `FreeGamesMonitor-linux-arm64.zip` |
+| Linux arm (Raspberry Pi 2/3) | `FreeGamesMonitor-linux-arm.zip` |
+| Windows x64 | `FreeGamesMonitor-win-x64.zip` |
+| Windows arm64 | `FreeGamesMonitor-win-arm64.zip` |
+| macOS Intel | `FreeGamesMonitor-osx-x64.zip` |
+| macOS Apple Silicon | `FreeGamesMonitor-osx-arm64.zip` |
+
+---
+
+### Step 4 - Extract
+
+#### Linux / macOS
+```bash
+unzip FreeGamesMonitor-linux-x64.zip -d ~/FreeGamesMonitor
+cd ~/FreeGamesMonitor
+```
+
+#### Windows
+Right-click the zip → Extract All → choose a folder like `C:\FreeGamesMonitor`
+
+---
+
+### Step 5 - Configure
+
+#### Linux / macOS
+```bash
+cp config.example.json config.json
+nano config.json
+```
+
+#### Windows
+Copy `config.example.json`, rename the copy to `config.json`, open with Notepad.
+
+Fill in your values:
+```json
+{
+  "AsfUrl": "http://localhost:1242",
+  "AsfPassword": "yourpassword",
+  "BotName": "yourbotname",
+  "SeenFile": "seen_games.json",
+  "CheckIntervalHours": 24
+}
+```
+
+| Field | What to put |
+|---|---|
+| `AsfUrl` | Leave as-is if ASF is on the same machine |
+| `AsfPassword` | The password you set in ASF.json |
+| `BotName` | Your bot name from ASF config |
+| `CheckIntervalHours` | How often to check in hours (default 24) |
+
+---
+
+### Step 6 - Test Run
+
+```bash
+cd ~/FreeGamesMonitor
+dotnet FreeGamesMonitor.dll
+```
+
+You should see:
+```
+FreeGamesMonitor started.
+Checking for free games...
+```
+
+If it works, stop it with `Ctrl+C` and set it up as a service below.
+
+---
+
+## Recommended - Run as a Service
+
+Running as a service means FreeGamesMonitor starts automatically on boot and runs in the background without keeping a terminal open.
+
+### Linux / Raspberry Pi
+
+```bash
+sudo nano /etc/systemd/system/freegames.service
+```
+
+Paste this - replace `your-user` with your Linux username:
 ```ini
 [Unit]
-Description=ASF Free Games Monitor (C#)
+Description=ASF Free Games Monitor
 After=network.target
 
 [Service]
-WorkingDirectory=/home/your-user/ASF/FreeGamesMonitor
-ExecStart=/home/your-user/.dotnet/dotnet /home/your-user/ASF/FreeGamesMonitor/bin/Release/net10.0/publish/FreeGamesMonitor.dll
-Restart=always
+Type=simple
 User=your-user
+WorkingDirectory=/home/your-user/FreeGamesMonitor
+ExecStart=/usr/bin/dotnet /home/your-user/FreeGamesMonitor/FreeGamesMonitor.dll
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-3. Enable service:
+Enable and start:
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable freegames
-```
-
-4. Start service:
-```bash
 sudo systemctl start freegames
-```
-
-5. Check status:
-```bash
 sudo systemctl status freegames
 ```
 
-6. View logs:
+Check live logs:
 ```bash
 sudo journalctl -u freegames -f
 ```
 
-## Build / Development
-### Update or rebuild workflow
+### Windows - run on startup
+1. Press `Win+R` → type `shell:startup` → Enter
+2. Create a `.bat` file in that folder with:
+```bat
+dotnet C:\FreeGamesMonitor\FreeGamesMonitor.dll
+```
+It will start automatically when Windows boots.
+
+---
+
+## Building from Source
+
+Use this if you want to build it yourself instead of using the release zip.
+
+### Step 1 - Install .NET 10 SDK
 ```bash
-cd ~/ASF/FreeGamesMonitor
-dotnet publish -c Release
-sudo systemctl restart freegames
+sudo apt update && sudo apt install -y dotnet-sdk-10.0
 ```
 
-## Configuration
-### IPC
-- URL: `http://localhost:1242`
-- Password: set in `ASF.json`
+### Step 2 - Get the source files
+Clone the repo or download and extract the source zip into a folder called `FreeGamesMonitor`.
 
-## Notes
-- Runs continuously under `systemd`
-- Timer is handled inside the application (no cron required)
-- Built for ASF integration via IPC/API
+### Step 3 - Build
+```bash
+cd ~/FreeGamesMonitor
+dotnet publish -c Release
+```
 
+### Step 4 - Configure and run
+```bash
+cp config.example.json bin/Release/net10.0/publish/config.json
+nano bin/Release/net10.0/publish/config.json
+dotnet bin/Release/net10.0/publish/FreeGamesMonitor.dll
+```
+
+---
+
+## Service Management
+
+| Action | Command |
+|---|---|
+| Start | `sudo systemctl start freegames` |
+| Stop | `sudo systemctl stop freegames` |
+| Restart | `sudo systemctl restart freegames` |
+| Status | `sudo systemctl status freegames` |
+| Logs | `sudo journalctl -u freegames -f` |
+
+---
+
+## Updating
+
+1. Stop the service: `sudo systemctl stop freegames`
+2. Download the new zip from [Releases](../../releases/latest)
+3. Extract and overwrite old files - **keep your `config.json`**
+4. Start again: `sudo systemctl start freegames`
+
+---
+
+## Troubleshooting
+
+**`dotnet: command not found`**
+→ .NET is not installed. Redo Step 1.
+
+**`config.json not found` on first run**
+→ The program creates a default one and exits. Fill it in and run again.
+
+**`Unauthorized` or `403` in logs**
+→ `AsfPassword` in `config.json` doesn't match the password in ASF's `ASF.json`.
+
+**`No new free games found` every time**
+→ Working correctly - it only redeems games it hasn't seen before.
+
+**Bot not found error**
+→ Check `BotName` in `config.json` matches your bot name in ASF exactly.
+
+---
+
+## Architecture
+
+- ASF handles your Steam bot session and card farming
+- FreeGamesMonitor runs independently and communicates with ASF via IPC
+- Both run as separate services
+- IPC endpoint: `http://localhost:1242`
