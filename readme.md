@@ -1,6 +1,6 @@
-# ArchiSteamFarm-Games - FreeGamesMonitor
+# [ArchiSteamFarm](https://github.com/JustArchiNET/ArchiSteamFarm) - FreeGamesMonitor
 
-Automatically detects and claims free Steam games via ArchiSteamFarm (ASF) IPC.
+Automatically detects and claims free Steam games via [ArchiSteamFarm](https://github.com/JustArchiNET/ArchiSteamFarm) (ASF) IPC.
 
 Runs alongside ASF whenever a free game appears on Steam, it gets added to your account automatically.
 
