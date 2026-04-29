@@ -1,0 +1,9 @@
+bin/
+obj/
+dotnet-install.sh
+dotnet-install.ps1
+dotnet-install.bat
+ 
+# User config - never commit this
+config.json
+seen_games.json

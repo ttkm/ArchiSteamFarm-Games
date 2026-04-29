@@ -1,0 +1,7 @@
+{
+  "AsfUrl": "http://localhost:1242",
+  "AsfPassword": "YOUR_IPC_PASSWORD",
+  "BotName": "YOUR_BOT_NAME",
+  "SeenFile": "seen_games.json",
+  "CheckIntervalHours": 24
+}
